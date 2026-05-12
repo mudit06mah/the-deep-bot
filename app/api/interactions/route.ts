@@ -61,41 +61,51 @@ export async function POST(req: Request) {
     let userInput = "Talk to me";
     
     if (interaction.data.options && interaction.data.options.length > 0) {
-      const option = interaction.data.options.find((opt: any) => opt.type === 3); // 3 is STRING type for discord options
+      const option = interaction.data.options.find((opt: any) => opt.type === 3);
       if (option) {
         userInput = option.value;
       }
     }
 
-    try {
-      // Using Llama 3 for fast, unhinged responses
-      const chatCompletion = await groq.chat.completions.create({
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userInput }
-        ],
-        model: 'llama3-8b-8192',
-        temperature: 0.9,
-        max_tokens: 300,
-      });
+    // Fire off the Groq request in the background
+    // Edge runtime doesn't freeze floating promises immediately, so this is safe on Vercel Edge.
+    const backgroundWork = async () => {
+      try {
+        const chatCompletion = await groq.chat.completions.create({
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: userInput }
+          ],
+          model: 'llama3-8b-8192',
+          temperature: 0.9,
+          max_tokens: 300,
+        });
 
-      const reply = chatCompletion.choices[0]?.message?.content || "I have nothing to say to you, civilian.";
+        const reply = chatCompletion.choices[0]?.message?.content || "I have nothing to say to you, civilian.";
 
-      return NextResponse.json({
-        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: {
-          content: reply,
-        },
-      });
-    } catch (error) {
-      console.error('Error with Groq API:', error);
-      return NextResponse.json({
-        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: {
-          content: "Sorry bro, the ocean is acting up right now. I'm busy meditating with the salmon.",
-        },
-      });
-    }
+        // Update the deferred message
+        await fetch(`https://discord.com/api/v10/webhooks/${process.env.DISCORD_APP_ID}/${interaction.token}/messages/@original`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: reply }),
+        });
+      } catch (error) {
+        console.error('Error with background work:', error);
+        await fetch(`https://discord.com/api/v10/webhooks/${process.env.DISCORD_APP_ID}/${interaction.token}/messages/@original`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: "Sorry bro, the ocean is acting up right now. I'm busy meditating with the salmon." }),
+        });
+      }
+    };
+
+    // Execute but do not await
+    backgroundWork();
+
+    // Immediately respond to Discord to acknowledge the command and prevent timeout
+    return NextResponse.json({
+      type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+    });
   }
 
   return new NextResponse('Unknown interaction type', { status: 400 });
