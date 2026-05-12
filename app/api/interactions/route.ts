@@ -120,7 +120,7 @@ export async function POST(req: Request) {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 content:
-                  "Sorry bro, the ocean is acting up right now. I'm busy meditating with the salmon.",
+                  "Sorry bro, the ocean is acting up right now. I'm busy meditating with the salmon.\n\n*(Error: " + (error as Error).message + ")*",
               }),
             }
           );
