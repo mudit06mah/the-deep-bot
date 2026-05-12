@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   // We add this try-catch because if process.env.DISCORD_PUBLIC_KEY is undefined, verifyKey can throw.
   let isValidRequest = false;
   try {
-    isValidRequest = verifyKey(
+    isValidRequest = await verifyKey(
       rawBody,
       signature,
       timestamp,
