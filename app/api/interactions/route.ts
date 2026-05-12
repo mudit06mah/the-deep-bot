@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { InteractionType, InteractionResponseType, verifyKey } from 'discord-interactions';
 import Groq from 'groq-sdk';
 
@@ -130,8 +130,9 @@ export async function POST(req: Request) {
       }
     };
 
-    // Start background work — on Node.js runtime, the function stays alive long enough
-    followUp();
+    // after() tells Vercel to keep the function alive after returning the response
+    // Without this, the serverless function gets killed before followUp() completes
+    after(followUp);
 
     return deferredResponse;
   }
