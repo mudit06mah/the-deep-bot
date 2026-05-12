@@ -90,7 +90,7 @@ export async function POST(req: Request) {
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: userInput },
           ],
-          model: 'llama3-8b-8192',
+          model: 'llama-3.3-70b-versatile',
           temperature: 0.9,
           max_tokens: 300,
         });
